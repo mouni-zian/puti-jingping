@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>清净度打卡 · 觉屏</title>
+<style>
+:root{--bg:#0a0a0a;--text:#e0e0e0;--gold:#c9a96e;--dim:#666;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;background:var(--bg);color:var(--text);line-height:1.9;max-width:680px;margin:0 auto;padding:3rem 1.5rem;}
+h1{color:var(--gold);font-weight:300;letter-spacing:0.3em;margin-bottom:0.5rem;font-size:1.5rem;}
+.back{color:var(--dim);font-size:0.85rem;text-decoration:none;display:inline-block;margin-bottom:2rem;}
+.back:hover{color:var(--gold);}
+.tip{color:var(--dim);font-size:0.85rem;margin-bottom:1.5rem;}
+input[type="number"]{width:100%;padding:0.8rem;background:#111;border:1px solid #222;color:var(--text);border-radius:4px;font-size:1.2rem;margin-bottom:1rem;font-family:inherit;text-align:center;}
+button{background:transparent;border:1px solid var(--gold);color:var(--gold);padding:0.5rem 1.5rem;border-radius:4px;cursor:pointer;font-size:0.85rem;transition:all 0.3s;}
+button:hover{background:var(--gold);color:#000;}
+.chart{display:flex;align:flex-end;gap:0.5rem;height:180px;margin:2rem 0;padding:1rem;border:1px solid #222;border-radius:4px;}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align:center;height:100%;justify-content:flex-end;}
+.bar{width:100%;background:var(--gold);border-radius:2px 2px 0 0;transition:height 0.5s;min-height:2px;}
+.bar-label{font-size:0.65rem;color:var(--dim);text-align:center;margin-top:0.3rem;}
+.bar-value{font-size:0.7rem;color:var(--gold);text-align:center;margin-bottom:0.2rem;}
+.stats{display:flex;justify-content:space-between;margin:1.5rem 0;padding:1rem;background:#111;border-radius:4px;}
+.stats div{text-align:center;}
+.stats .num{font-size:1.5rem;color:var(--gold);}
+.stats .label{font-size:0.75rem;color:var(--dim);}
+.history{margin-top:1.5rem;}
+.history-item{display:flex;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid #1a1a1a;font-size:0.85rem;}
+.history-item .date{color:var(--dim);}
+.history-item .score{color:var(--gold);}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← 返回觉屏</a>
+<h1>清 净 度 打 卡</h1>
+<p class="tip">每天睡前给自己打 1-10 分。10 = 完全清净，1 = 全天被算法淹没。</p>
+
+<input type="number" id="score" min="1" max="10" placeholder="输入 1-10">
+<button onclick="save()">打卡</button>
+
+<div class="stats" id="stats"></div>
+<div class="chart" id="chart"></div>
+<div class="history" id="history"></div>
+
+<script>
+let records = JSON.parse(localStorage.getItem('puti_score') || '[]');
+render();
+
+function save() {
+  const val = parseInt(document.getElementById('score').value);
+  if (!val || val < 1 || val > 10) return;
+  const today = new Date().toLocaleDateString();
+  // 同一天只更新，不重复
+  const existing = records.findIndex(r => r.date === today);
+  if (existing >= 0) records[existing].score = val;
+  else records.unshift({ date: today, score: val });
+  localStorage.setItem('puti_score', JSON.stringify(records));
+  document.getElementById('score').value = '';
+  render();
+}
+
+function render() {
+  // 统计
+  const avg = records.length ? (records.reduce((a,b)=>a+b.score,0)/records.length).toFixed(1) : '-';
+  const max = records.length ? Math.max(...records.map(r=>r.score)) : '-';
+  const min = records.length ? Math.min(...records.map(r=>r.score)) : '-';
+  document.getElementById('stats').innerHTML = `
+    <div><div class="num">${avg}</div><div class="label">平均</div></div>
+    <div><div class="num">${max}</div><div class="label">最高</div></div>
+    <div><div class="num">${min}</div><div class="label">最低</div></div>
+    <div><div class="num">${records.length}</div><div class="label">总天数</div></div>
+  `;
+
+  // 最近7天柱状图
+  const recent = records.slice(0, 7).reverse();
+  if (recent.length) {
+    document.getElementById('chart').innerHTML = recent.map(r => `
+      <div class="bar-wrap">
+        <div class="bar-value">${r.score}</div>
+        <div class="bar" style="height:${r.score * 16}px;"></div>
+        <div class="bar-label">${r.date.slice(5)}</div>
+      </div>
+    `).join('');
+  }
+
+  // 历史列表
+  document.getElementById('history').innerHTML = records.slice(0, 30).map(r =>
+    `<div class="history-item"><span class="date">${r.date}</span><span class="score">${r.score} / 10</span></div>`
+  ).join('');
+}
+</script>
+</body>
+</html>
