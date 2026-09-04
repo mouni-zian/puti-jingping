@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>围剿 · 心理防线模拟 | 觉屏</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+#stage { position:relative; padding:2rem; background:var(--surface); border:1px solid var(--border); border-radius:4px; margin:1.5rem 0; overflow:hidden; transition:all 0.5s; }
+
+/* SVG 滤镜容器 */
+#distort-wrap { transition:filter 0.3s; }
+
+/* Glitch 文字 */
+.glitch-text { font-size:1.5rem; font-weight:bold; position:relative; display:inline-block; margin:1rem 0; }
+.glitch-text::before, .glitch-text::after { content:attr(data-text); position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; transition:opacity 0.3s; }
+.glitch-text.glitching::before { opacity:0.7; color:#c05050; animation:glitch-1 0.3s infinite linear alternate-reverse; }
+.glitch-text.glitching::after { opacity:0.7; color:#a050c0; animation:glitch-2 0.4s infinite linear alternate-reverse; }
+
+@keyframes glitch-1 {
+  0%{clip-path:inset(20% 0 80% 0); transform:translate(-2px,1px);}
+  100%{clip-path:inset(60% 0 10% 0); transform:translate(2px,-1px);}
+}
+@keyframes glitch-2 {
+  0%{clip-path:inset(10% 0 60% 0); transform:translate(2px,-1px);}
+  100%{clip-path:inset(50% 0 30% 0); transform:translate(-2px,1px);}
+}
+
+/* Canvas */
+#siege-canvas { width:100%; height:280px; background:#0a0a0a; border-radius:4px; margin:1rem 0; display:block; }
+
+/* 控制区 */
+.controls { display:flex; gap:0.5rem; margin:1rem 0; flex-wrap:wrap; align-items:center; }
+.controls button { font-size:0.8rem; padding:0.5rem 1rem; }
+.slider-label { font-size:0.8rem; color:var(--dim); margin-left:auto; }
+input[type="range"] { width:150px; -webkit-appearance:none; height:4px; background:#3a3734; border-radius:2px; outline:none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; background:var(--gold); border-radius:50%; cursor:pointer; }
+
+/* 防御按钮 */
+#defend-btn { display:none; margin:1rem auto; padding:0.8rem 2rem; font-size:0.9rem; background:transparent; border:2px solid var(--gold); color:var(--gold); border-radius:4px; cursor:pointer; transition:all 0.3s; }
+#defend-btn:hover { background:var(--gold); color:#1a1918; }
+#defend-btn.show { display:block; animation:pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(201,169,110,0.4);} 50%{box-shadow:0 0 0 10px rgba(201,169,110,0);} }
+
+/* 历史说明 */
+#history-panel { display:none; margin-top:2rem; padding:1.5rem; background:#111; border-left:4px solid var(--gold); border-radius:4px; line-height:1.8; }
+#history-panel h3 { color:var(--gold); margin-bottom:0.8rem; }
+#history-panel ul { padding-left:1.2rem; }
+#history-panel li { margin-bottom:0.5rem; }
+
+/* 状态指示 */
+.status-bar { display:flex; gap:1rem; margin:1rem 0; }
+.status-item { flex:1; text-align:center; padding:0.5rem; background:var(--surface); border:1px solid var(--border); border-radius:4px; font-size:0.75rem; }
+.status-item .val { font-size:1.1rem; font-weight:bold; }
+.status-item .lbl { color:var(--dim); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← 返回觉屏</a>
+<h1>围 剿</h1>
+<p class="tip">心理防线模拟。体验"有组织纠缠"如何逐步剥夺一个人的现实感。<br>这不是虚构。这是真实发生过的手段，也是今天信息战的底层逻辑。</p>
+
+<div class="status-bar">
+  <div class="status-item"><div class="val" id="s-reality" style="color:#6b8e5a;">100</div><div class="lbl">现实锚定</div></div>
+  <div class="status-item"><div class="val" id="s-pressure" style="color:#888;">0</div><div class="lbl">监视压力</div></div>
+  <div class="status-item"><div class="val" id="s-distortion" style="color:#888;">0</div><div class="lbl">现实扭曲</div></div>
+</div>
+
+<div id="distort-wrap">
+<div id="stage">
+  <div id="glitch-target" class="glitch-text" data-text="你确定你记得的是真的吗？">你确定你记得的是真的吗？</div>
+  <p id="stage-text">周围一切正常。你的感知清晰，记忆完整，社交关系稳固。</p>
+  <canvas id="siege-canvas"></canvas>
+  <button id="defend-btn" onclick="defend()">🧘 认知锚点：夺回现实</button>
+</div>
+</div>
+
+<div class="controls">
+  <button onclick="startSiege()">开始模拟</button>
+  <button onclick="resetAll()">重置</button>
+  <span class="slider-label">围剿强度：<span id="intensity-val">0</span>%</span>
+  <input type="range" id="intensity" min="0" max="100" value="0" oninput="updateIntensity(this.value)">
+</div>
+
+<div id="history-panel">
+  <h3>📖 真实历史：东德斯塔西的"有组织纠缠"（Zersetzung）</h3>
+  <p>斯塔西（Stasi）是东德国家安全部，拥有 9 万正式员工和 17.3 万线人，监控全国 1800 万人口中的 600 万。</p>
+  <p>他们发明了一种不需要监狱的心理摧毁系统——<strong>Zersetzung（腐蚀/分解）</strong>：</p>
+  <ul>
+    <li><strong>信息隔离</strong>：窃听电话、拆信件、在门缝塞伪造的"邻居投诉"，让社交圈逐渐萎缩</li>
+    <li><strong>现实扭曲</strong>：悄悄移动家中物品（钥匙、书、家具），制造"巧合"让你怀疑记忆</li>
+    <li><strong>社会死亡</strong>：秘密散布谣言，让同事、邻居、家人都"知道"你有问题——不逮捕你，但让你在每个场合都感到被监视</li>
+    <li><strong>自我怀疑</strong>：最终目标——让你自己得出结论"我疯了"。当一个人怀疑自己的感知时，他就失去了反抗的能力</li>
+  </ul>
+  <p>斯塔西档案中有一句令人毛骨悚然的话：</p>
+  <p style="color:var(--gold); font-style:italic;">"我们的目标是让对象在心理上被摧毁，以至于他不再需要被关进监狱。"</p>
+  <p>今天，这套逻辑被算法放大了——不是让你相信一个谎言，而是让你<strong>无法相信任何东西，包括你自己的眼睛</strong>。</p>
+  <p><strong>但你现在知道了。知道，就是防御的开始。</strong></p>
+</div>
+
+<!-- SVG 滤镜 -->
+<svg width="0" height="0" style="position:absolute;">
+  <filter id="distortion">
+    <feTurbulence id="turb" type="fractalNoise" baseFrequency="0" numOctaves="2" result="noise"/>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="0"/>
+  </filter>
+</svg>
+
+<script>
+// ===== Canvas 粒子系统 =====
+const canvas = document.getElementById('siege-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let intensity = 0;
+let animId;
+let phase = 'idle'; // idle -> watching -> distorting -> defended
+
+function resizeCanvas(){
+  canvas.width = canvas.parentElement.offsetWidth - 32;
+  canvas.height = 280;
+}
+resizeCanvas();
+window.addEventListener('resize', ()=>{ resizeCanvas(); initParticles(); });
+
+function initParticles(){
+  particles = [];
+  for(let i=0;i<35;i++){
+    particles.push({
+      x:Math.random()*canvas.width,
+      y:Math.random()*canvas.height,
+      vx:(Math.random()-0.5)*0.4,
+      vy:(Math.random()-0.5)*0.4,
+      size:1.5+Math.random()*2,
+      baseVx:(Math.random()-0.5)*0.4,
+      baseVy:(Math.random()-0.5)*0.4
+    });
+  }
+}
+initParticles();
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  
+  // 中心"你"
+  const cx = canvas.width/2, cy = canvas.height/2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 12, 0, Math.PI*2);
+  ctx.fillStyle = intensity > 60 ? '#c05050' : '#d4a853';
+  ctx.fill();
+  
+  particles.forEach(p=>{
+    // 强度驱动：向中心聚集
+    const dx = cx - p.x, dy = cy - p.y;
+    const dist = Math.sqrt(dx*dx+dy*dy) || 1;
+    
+    if(intensity > 0){
+      const pull = intensity * 0.00008;
+      p.vx += dx/dist * pull;
+      p.vy += dy/dist * pull;
+    }
+    
+    // 速度限制
+    const speed = Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+    const maxSpeed = 0.5 + intensity/30;
+    if(speed > maxSpeed){ p.vx*=0.95; p.vy*=0.95; }
+    
+    p.x += p.vx; p.y += p.vy;
+    
+    // 边界
+    if(p.x<0||p.x>canvas.width) p.vx*=-1;
+    if(p.y<0||p.y>canvas.height) p.vy*=-1;
+    
+    // 颜色随强度变化
+    let color = '#444';
+    if(intensity > 70) color = '#c05050';
+    else if(intensity > 30) color = '#888';
+    
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    
+    // 连线
+    if(dist < 120 + intensity){
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(cx, cy);
+      ctx.strokeStyle = intensity>50 ? `rgba(192,80,80,${intensity/200})` : `rgba(100,100,100,${intensity/400})`;
+      ctx.lineWidth = intensity/80;
+      ctx.stroke();
+    }
+  });
+  
+  animId = requestAnimationFrame(draw);
+}
+draw();
+
+// ===== 控制 =====
+function updateIntensity(val){
+  intensity = parseInt(val);
+  document.getElementById('intensity-val').textContent = intensity;
+  
+  // 更新状态栏
+  document.getElementById('s-pressure').textContent = intensity;
+  document.getElementById('s-pressure').style.color = intensity>60?'#c05050':intensity>30?'#d4a853':'#888';
+  
+  const distortion = Math.min(100, intensity * 1.2);
+  document.getElementById('s-distortion').textContent = Math.round(distortion);
+  document.getElementById('s-distortion').style.color = distortion>60?'#a050c0':distortion>30?'#d4a853':'#888';
+  
+  // SVG 滤镜
+  const turb = document.getElementById('turb');
+  const dispMap = document.querySelector('#distortion feDisplacementMap');
+  turb.setAttribute('baseFrequency', (intensity/10000).toString());
+  dispMap.setAttribute('scale', (intensity/3).toString());
+  document.getElementById('distort-wrap').style.filter = `url(#distortion)`;
+  
+  // Glitch
+  const glitchEl = document.getElementById('glitch-target');
+  if(intensity > 40) glitchEl.classList.add('glitching');
+  else glitchEl.classList.remove('glitching');
+  
+  // 文字变化
+  const textEl = document.getElementById('stage-text');
+  if(intensity > 80){
+    textEl.textContent = "你开始怀疑自己的记忆。钥匙被动过。朋友不再回消息。你不确定哪里出了问题——但一切都感觉不对。";
+    textEl.style.color = '#c05050';
+  } else if(intensity > 50){
+    textEl.textContent = "周围的人在说谎。物品被移动。信息互相矛盾。你试图分辨真假，但越分辨越混乱。";
+    textEl.style.color = '#a050c0';
+  } else if(intensity > 20){
+    textEl.textContent = "你注意到一些微小的异常。电话里有杂音。邻居看你的眼神变了。你不确定是不是自己多想了。";
+    textEl.style.color = '#d4a853';
+  } else {
+    textEl.textContent = "周围一切正常。你的感知清晰，记忆完整，社交关系稳固。";
+    textEl.style.color = '';
+  }
+  
+  // 显示防御按钮
+  if(intensity > 30){
+    document.getElementById('defend-btn').classList.add('show');
+  }
+}
+
+function startSiege(){
+  // 自动渐进到 85
+  let v = 0;
+  const iv = setInterval(()=>{
+    v += 2;
+    document.getElementById('intensity').value = v;
+    updateIntensity(v);
+    if(v >= 85) clearInterval(iv);
+  }, 80);
+}
+
+function defend(){
+  // 重置一切
+  document.getElementById('intensity').value = 0;
+  updateIntensity(0);
+  document.getElementById('defend-btn').classList.remove('show');
+  document.getElementById('glitch-target').classList.remove('glitching');
+  document.getElementById('stage-text').textContent = "你深吸一口气。现实重新变得清晰。你记得自己是谁，记得什么发生过、什么没有。你没有被摧毁。";
+  document.getElementById('stage-text').style.color = '#6b8e5a';
+  document.getElementById('s-reality').textContent = '100';
+  document.getElementById('s-reality').style.color = '#6b8e5a';
+  document.getElementById('s-pressure').textContent = '0';
+  document.getElementById('s-pressure').style.color = '#888';
+  document.getElementById('s-distortion').textContent = '0';
+  document.getElementById('s-distortion').style.color = '#888';
+  
+  // 粒子散开
+  particles.forEach(p=>{ p.vx = (Math.random()-0.5)*2; p.vy = (Math.random()-0.5)*2; });
+  
+  // 显示历史面板
+  document.getElementById('history-panel').style.display = 'block';
+  
+  // 滚动到历史面板
+  setTimeout(()=>{ document.getElementById('history-panel').scrollIntoView({behavior:'smooth'}); }, 500);
+}
+
+function resetAll(){
+  document.getElementById('intensity').value = 0;
+  updateIntensity(0);
+  document.getElementById('defend-btn').classList.remove('show');
+  document.getElementById('glitch-target').classList.remove('glitching');
+  document.getElementById('stage-text').textContent = "周围一切正常。你的感知清晰，记忆完整，社交关系稳固。";
+  document.getElementById('stage-text').style.color = '';
+  document.getElementById('history-panel').style.display = 'none';
+  document.getElementById('s-reality').textContent = '100';
+  document.getElementById('s-reality').style.color = '#6b8e5a';
+  initParticles();
+}
+</script>
+</body>
+</html>
