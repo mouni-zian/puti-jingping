@@ -7,23 +7,34 @@
 <link rel="stylesheet" href="../style.css">
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
-#canvas { width: 100%; height: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin: 1.5rem 0; }
-.node { stroke: #1a1918; stroke-width: 2px; cursor: pointer; }
+#canvas { width: 100%; height: 520px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin: 1.5rem 0; position: relative; }
+.node { stroke: #1a1918; stroke-width: 2px; cursor: pointer; transition: opacity 0.4s, r 0.4s; }
 .node:hover { stroke: var(--gold); stroke-width: 3px; }
-.link { stroke: #444; stroke-opacity: 0.6; }
-.label { font-size: 11px; fill: var(--text); pointer-events: none; }
-.tooltip { position: absolute; padding: 0.8rem; background: #1a1918; border: 1px solid var(--gold); border-radius: 4px; font-size: 0.8rem; color: var(--text); pointer-events: none; opacity: 0; transition: opacity 0.2s; max-width: 250px; line-height: 1.6; }
+.link { stroke: #444; stroke-opacity: 0.5; transition: opacity 0.4s, stroke-opacity 0.4s; }
+.label { font-size: 11px; fill: var(--text); pointer-events: none; transition: opacity 0.4s; }
+.tooltip { position: absolute; padding: 0.8rem; background: #1a1918; border: 1px solid var(--gold); border-radius: 4px; font-size: 0.8rem; color: var(--text); pointer-events: none; opacity: 0; transition: opacity 0.2s; max-width: 250px; line-height: 1.6; z-index: 10; }
+.slider-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1.2rem; margin: 1.5rem 0; }
+.slider-wrap label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.slider-wrap span { color: var(--gold); font-size: 0.9rem; }
+input[type="range"] { width: 100%; -webkit-appearance: none; appearance: none; height: 6px; background: #3a3734; border-radius: 3px; outline: none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: var(--gold); border-radius: 50%; cursor: pointer; }
+input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; background: var(--gold); border-radius: 50%; cursor: pointer; border: none; }
+.discipline-readout { font-size: 0.85rem; color: var(--dim); margin-top: 0.5rem; text-align: center; }
 .controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .controls button { font-size: 0.75rem; padding: 0.3rem 0.8rem; }
-.legend { display: flex; gap: 1rem; margin: 1rem 0; font-size: 0.8rem; color: var(--dim); }
+.legend { display: flex; gap: 1rem; margin: 1rem 0; font-size: 0.8rem; color: var(--dim); flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 0.3rem; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.stats-bar { display: flex; gap: 1rem; margin: 1rem 0; }
+.stats-bar div { background: var(--surface); padding: 0.6rem 1rem; border-radius: 4px; text-align: center; flex: 1; }
+.stats-bar .num { font-size: 1.2rem; color: var(--gold); }
+.stats-bar .label { font-size: 0.7rem; color: var(--dim); }
 </style>
 </head>
 <body>
 <a class="back" href="../index.html">← 返回觉屏</a>
 <h1>信 息 茧 房 可 视 化</h1>
-<p class="tip">你的信息世界长什么样？每个节点是一条记录，连线是算法推荐链。数据来自你的摄入追踪。</p>
+<p class="tip">你的信息世界长什么样？拖动下方滑块，看认知纪律如何瓦解算法牢笼。</p>
 
 <div class="legend">
   <div class="legend-item"><div class="legend-dot" style="background:#6b8e5a;"></div>平静</div>
@@ -33,10 +44,21 @@
   <div class="legend-item"><div class="legend-dot" style="background:#a050c0;"></div>被操纵</div>
 </div>
 
+<div class="stats-bar" id="stats-bar"></div>
+
 <div class="controls">
   <button onclick="loadData()">从追踪记录加载</button>
   <button onclick="generateDemo()">生成演示数据</button>
   <button onclick="clearGraph()">清空</button>
+</div>
+
+<div class="slider-wrap">
+  <label>
+    <span>认知纪律强度</span>
+    <span id="discipline-value">0%</span>
+  </label>
+  <input type="range" id="discipline" min="0" max="100" value="0" oninput="applyDiscipline(this.value)">
+  <p class="discipline-readout" id="discipline-readout">0% 清净——算法完全控制你的信息流</p>
 </div>
 
 <div id="canvas"></div>
@@ -44,7 +66,26 @@
 
 <script>
 const colorMap = { calm: '#6b8e5a', neutral: '#888', curious: '#d4a853', angry: '#c05050', anxious: '#c05050', manipulated: '#a050c0' };
+const negativeImpacts = ['angry', 'anxious', 'manipulated'];
 let simulation, svg, width, height;
+let allNodes = [], allLinks = [];
+let nodeSel, linkSel, labelSel;
+
+const readouts = [
+  [0, "0% 清净——算法完全控制你的信息流"],
+  [20, "20% 清净——开始有意识地不点击愤怒内容"],
+  [40, "40% 清净——主动搜索替代无目的滑动"],
+  [60, "60% 清净——大部分推荐链已被切断"],
+  [80, "80% 清净——算法几乎喂不动你"],
+  [100, "100% 清净——认知自由，算法牢笼已瓦解"],
+];
+
+function getReadout(val) {
+  for (let i = readouts.length - 1; i >= 0; i--) {
+    if (val >= readouts[i][0]) return readouts[i][1];
+  }
+  return "";
+}
 
 function initCanvas() {
   d3.select('#canvas').selectAll('*').remove();
@@ -55,20 +96,22 @@ function initCanvas() {
 
 function drawGraph(nodes, links) {
   initCanvas();
+  allNodes = nodes.map(n => ({...n}));
+  allLinks = links.map(l => ({...l}));
   const tooltip = document.getElementById('tooltip');
 
-  simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
+  simulation = d3.forceSimulation(allNodes)
+    .force('link', d3.forceLink(allLinks).id(d => d.id).distance(120))
     .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(25));
+    .force('collision', d3.forceCollide().radius(d => (d.weight || 12) + 5));
 
-  const link = svg.append('g').selectAll('line')
-    .data(links).enter().append('line')
+  linkSel = svg.append('g').selectAll('line')
+    .data(allLinks).enter().append('line')
     .attr('class', 'link');
 
-  const node = svg.append('g').selectAll('circle')
-    .data(nodes).enter().append('circle')
+  nodeSel = svg.append('g').selectAll('circle')
+    .data(allNodes).enter().append('circle')
     .attr('class', 'node')
     .attr('r', d => d.weight || 12)
     .attr('fill', d => colorMap[d.impact] || '#888')
@@ -77,26 +120,70 @@ function drawGraph(nodes, links) {
       .on('drag', dragged)
       .on('end', dragend));
 
-  const label = svg.append('g').selectAll('text')
-    .data(nodes).enter().append('text')
+  labelSel = svg.append('g').selectAll('text')
+    .data(allNodes).enter().append('text')
     .attr('class', 'label')
-    .text(d => d.source ? d.source.substring(0, 6) : '?')
+    .text(d => (d.source || '?').substring(0, 5))
     .attr('text-anchor', 'middle')
     .attr('dy', 3);
 
-  node.on('mouseover', (e, d) => {
+  nodeSel.on('mouseover', (e, d) => {
     tooltip.style.opacity = 1;
-    tooltip.innerHTML = `<strong>${d.source}</strong><br>影响：${d.impact}<br>时长：${d.duration || 0}分钟`;
+    tooltip.innerHTML = `<strong>${d.source || d.id}</strong><br>影响：${d.impact}<br>时长：${d.duration || 0}分钟`;
     tooltip.style.left = e.pageX + 10 + 'px';
     tooltip.style.top = e.pageY - 10 + 'px';
   }).on('mouseout', () => { tooltip.style.opacity = 0; });
 
   simulation.on('tick', () => {
-    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+    linkSel.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
         .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-    node.attr('cx', d => d.x).attr('cy', d => d.y);
-    label.attr('x', d => d.x).attr('y', d => d.y);
+    nodeSel.attr('cx', d => d.x).attr('cy', d => d.y);
+    labelSel.attr('x', d => d.x).attr('y', d => d.y);
   });
+
+  updateStats();
+}
+
+function applyDiscipline(val) {
+  document.getElementById('discipline-value').textContent = val + '%';
+  document.getElementById('discipline-readout').textContent = getReadout(parseInt(val));
+
+  if (!nodeSel) return;
+  const v = parseInt(val) / 100;
+
+  nodeSel.transition().duration(400)
+    .style('opacity', d => negativeImpacts.includes(d.impact) ? Math.max(0, 1 - v * 1.5) : 1)
+    .attr('r', d => {
+      const base = d.weight || 12;
+      if (negativeImpacts.includes(d.impact)) return base * Math.max(0.1, 1 - v * 1.2);
+      return base * (1 + v * 0.3);
+    });
+
+  linkSel.transition().duration(400)
+    .style('opacity', d => {
+      const srcNeg = negativeImpacts.includes(d.source.impact);
+      const tgtNeg = negativeImpacts.includes(d.target.impact);
+      if (srcNeg || tgtNeg) return Math.max(0, 0.5 - v * 0.8);
+      return 0.5 + v * 0.3;
+    });
+
+  labelSel.transition().duration(400)
+    .style('opacity', d => negativeImpacts.includes(d.impact) ? Math.max(0, 1 - v * 1.5) : 1);
+
+  updateStats(v);
+}
+
+function updateStats(disciplineRatio) {
+  const total = allNodes.length;
+  const negative = allNodes.filter(n => negativeImpacts.includes(n.impact)).length;
+  const visible = disciplineRatio !== undefined
+    ? allNodes.filter(n => !negativeImpacts.includes(n.impact) || (1 - disciplineRatio * 1.5) > 0.5).length
+    : total;
+  document.getElementById('stats-bar').innerHTML = `
+    <div><div class="num">${total}</div><div class="label">总节点</div></div>
+    <div><div class="num">${negative}</div><div class="label">负面节点</div></div>
+    <div><div class="num">${visible}</div><div class="label">当前可见</div></div>
+  `;
 }
 
 function dragstart(e, d) { if (!simulation.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
@@ -110,25 +197,35 @@ function loadData() {
   const links = [];
   for (let i = 1; i < nodes.length; i++) links.push({ source: i - 1, target: i });
   drawGraph(nodes, links);
+  document.getElementById('discipline').value = 0;
+  applyDiscipline(0);
 }
 
 function generateDemo() {
   const demos = [
-    { id: 0, source: '微博热搜', impact: 'angry', duration: 30, weight: 15 },
-    { id: 1, source: '相关争议视频', impact: 'angry', duration: 20, weight: 12 },
-    { id: 2, source: '评论区骂战', impact: 'manipulated', duration: 15, weight: 18 },
-    { id: 3, source: '算法推荐同类', impact: 'anxious', duration: 25, weight: 14 },
+    { id: 0, source: '微博热搜', impact: 'angry', duration: 30, weight: 18 },
+    { id: 1, source: '争议视频', impact: 'angry', duration: 20, weight: 15 },
+    { id: 2, source: '评论区骂战', impact: 'manipulated', duration: 15, weight: 20 },
+    { id: 3, source: '同类推荐', impact: 'anxious', duration: 25, weight: 16 },
     { id: 4, source: '搞笑视频', impact: 'neutral', duration: 10, weight: 10 },
-    { id: 5, source: '深度文章', impact: 'curious', duration: 15, weight: 12 },
-    { id: 6, source: '冥想音乐', impact: 'calm', duration: 20, weight: 10 },
+    { id: 5, source: '深度文章', impact: 'curious', duration: 15, weight: 14 },
+    { id: 6, source: '冥想音乐', impact: 'calm', duration: 20, weight: 12 },
+    { id: 7, source: '知识科普', impact: 'curious', duration: 12, weight: 12 },
+    { id: 8, source: '愤怒评论', impact: 'angry', duration: 8, weight: 14 },
+    { id: 9, source: '辟谣文章', impact: 'neutral', duration: 5, weight: 10 },
   ];
-  const links = [{ source: 0, target: 1 }, { source: 1, target: 2 }, { source: 2, target: 3 }, { source: 3, target: 4 }, { source: 4, target: 5 }, { source: 5, target: 6 }];
+  const links = [
+    { source: 0, target: 1 }, { source: 1, target: 2 }, { source: 2, target: 3 },
+    { source: 3, target: 4 }, { source: 4, target: 5 }, { source: 5, target: 6 },
+    { source: 6, target: 7 }, { source: 0, target: 8 }, { source: 8, target: 9 },
+  ];
   drawGraph(demos, links);
+  document.getElementById('discipline').value = 0;
+  applyDiscipline(0);
 }
 
-function clearGraph() { initCanvas(); }
+function clearGraph() { initCanvas(); allNodes = []; allLinks = []; updateStats(0); }
 
-// 自动生成演示
 generateDemo();
 </script>
 </body>
