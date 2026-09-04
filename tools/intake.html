@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>信息摄入追踪 · 觉屏</title>
+<style>
+:root{--bg:#0a0a0a;--text:#e0e0e0;--gold:#c9a96e;--dim:#666;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;background:var(--bg);color:var(--text);line-height:1.9;max-width:680px;margin:0 auto;padding:3rem 1.5rem;}
+h1{color:var(--gold);font-weight:300;letter-spacing:0.3em;margin-bottom:0.5rem;font-size:1.5rem;}
+.back{color:var(--dim);font-size:0.85rem;text-decoration:none;display:inline-block;margin-bottom:2rem;}
+.back:hover{color:var(--gold);}
+.tip{color:var(--dim);font-size:0.85rem;margin-bottom:1.5rem;}
+form{background:#111;border:1px solid #222;border-radius:4px;padding:1.2rem;margin-bottom:2rem;}
+label{display:block;font-size:0.85rem;color:var(--dim);margin-bottom:0.3rem;margin-top:0.8rem;}
+input,select,textarea{width:100%;padding:0.6rem;background:#0a0a0a;border:1px solid #333;color:var(--text);border-radius:4px;font-size:0.9rem;font-family:inherit;}
+textarea{resize:vertical;height:60px;}
+button{margin-top:1rem;background:transparent;border:1px solid var(--gold);color:var(--gold);padding:0.5rem 1.5rem;border-radius:4px;cursor:pointer;font-size:0.85rem;}
+button:hover{background:var(--gold);color:#000;}
+.entry{background:#111;border-left:2px solid #222;padding:1rem;margin-bottom:0.8rem;border-radius:0 4px 4px 0;font-size:0.85rem;}
+.entry .meta{color:var(--dim);font-size:0.75rem;margin-bottom:0.3rem;}
+.entry .content{color:#bbb;}
+.entry .impact{color:var(--gold);font-size:0.8rem;margin-top:0.3rem;}
+.stats{display:flex;gap:1rem;margin-bottom:1.5rem;}
+.stats div{background:#111;padding:0.8rem 1rem;border-radius:4px;text-align:center;flex:1;}
+.stats .num{font-size:1.3rem;color:var(--gold);}
+.stats .label{font-size:0.7rem;color:var(--dim);}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← 返回觉屏</a>
+<h1>信 息 摄 入 追 踪</h1>
+<p class="tip">记录你每天主动/被动摄入的信息。觉察即解脱。</p>
+
+<div class="stats" id="stats"></div>
+
+<form id="form">
+  <label>平台 / 来源</label>
+  <input type="text" id="source" placeholder="如：抖音、微博、公众号、新闻" list="sources">
+  <datalist id="sources">
+    <option value="抖音">
+    <option value="微博">
+    <option value="微信">
+    <option value="B站">
+    <option value="小红书">
+    <option value="新闻">
+    <option value="朋友圈">
+  </datalist>
+
+  <label>内容摘要</label>
+  <textarea id="content" placeholder="看了什么？一句话描述"></textarea>
+
+  <label>情绪影响</label>
+  <select id="impact">
+    <option value="neutral">无感 / 中性</option>
+    <option value="curious">好奇 / 有收获</option>
+    <option value="calm">平静 / 放松</option>
+    <option value="angry">愤怒 / 被激怒</option>
+    <option value="anxious">焦虑 / 不安</option>
+    <option value="manipulated">感觉被操纵 / 被钓鱼</option>
+  </select>
+
+  <label>时长（分钟，大概）</label>
+  <input type="number" id="duration" placeholder="0" min="0">
+
+  <button type="submit">记录</button>
+</form>
+
+<div id="list"></div>
+
+<script>
+let entries = JSON.parse(localStorage.getItem('puti_intake') || '[]');
+render();
+
+document.getElementById('form').onsubmit = e => {
+  e.preventDefault();
+  const entry = {
+    source: document.getElementById('source').value.trim(),
+    content: document.getElementById('content').value.trim(),
+    impact: document.getElementById('impact').value,
+    duration: parseInt(document.getElementById('duration').value) || 0,
+    time: new Date().toLocaleString()
+  };
+  if (!entry.source && !entry.content) return;
+  entries.unshift(entry);
+  localStorage.setItem('puti_intake', JSON.stringify(entries));
+  e.target.reset();
+  render();
+};
+
+function render() {
+  const impactLabels = {neutral:'无感',curious:'好奇',calm:'平静',angry:'愤怒',anxious:'焦虑',manipulated:'被操纵'};
+  const total = entries.reduce((a,e) => a + e.duration, 0);
+  const angry = entries.filter(e => e.impact === 'angry' || e.impact === 'manipulated').length;
+  const manipulated = entries.filter(e => e.impact === 'manipulated').length;
+  document.getElementById('stats').innerHTML = `
+    <div><div class="num">${entries.length}</div><div class="label">总记录</div></div>
+    <div><div class="num">${total}</div><div class="label">总分钟</div></div>
+    <div><div class="num">${angry}</div><div class="label">负面情绪</div></div>
+    <div><div class="num">${manipulated}</div><div class="label">被操纵感</div></div>
+  `;
+  document.getElementById('list').innerHTML = entries.slice(0, 50).map(e => `
+    <div class="entry">
+      <div class="meta">${e.time} · ${e.source || '未知'} · ${e.duration}分钟</div>
+      <div class="content">${e.content || '（无描述）'}</div>
+      <div class="impact">影响：${impactLabels[e.impact] || e.impact}</div>
+    </div>
+  `).join('');
+}
+</script>
+</body>
+</html>

@@ -37,3 +37,12 @@ btn.onclick = async () => {
     result.textContent = '照见失败：' + e.message;
   }
 };
+document.getElementById('analyze-page').onclick = async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  chrome.tabs.sendMessage(tab.id, { action: 'extract' }, async (response) => {
+    if (response && response.text) {
+      input.value = response.text.substring(0, 2000);
+      btn.click();
+    }
+  });
+};
