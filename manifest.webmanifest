@@ -1,0 +1,16 @@
+{
+  "name": "觉屏 · 认知防弹衣",
+  "short_name": "觉屏",
+  "description": "对抗 AI 驱动的认知操纵，守护你的清净心",
+  "start_url": "/puti-jingping/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/puti-jingping/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

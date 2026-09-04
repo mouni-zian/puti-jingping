@@ -20,6 +20,8 @@ h1{font-size:1.8rem;font-weight:300;letter-spacing:0.4em;color:var(--gold);margi
 .nav-item p{font-size:0.85rem;color:var(--dim);}
 footer{text-align:center;font-size:0.75rem;color:#444;letter-spacing:0.05em;border-top:1px solid #1a1a1a;padding-top:2rem;margin-top:3rem;}
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
 </head>
 <body>
 <header>
@@ -56,5 +58,9 @@ footer{text-align:center;font-size:0.75rem;color:#444;letter-spacing:0.05em;bord
   本地优先 · 数据不上传 · 你的认知你做主<br>
   © 2026 觉屏
 </footer>
+<div id="install-tip" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #c9a96e;padding:1rem;text-align:center;font-size:0.85rem;color:#bbb;">
+  📱 将此页面添加到手机主屏幕，随时使用。
+  <button onclick="this.parentElement.style.display='none'" style="margin-left:1rem;background:none;border:1px solid #c9a96e;color:#c9a96e;padding:0.2rem 0.8rem;border-radius:3px;cursor:pointer;">知道了</button>
+</div>
 </body>
 </html>

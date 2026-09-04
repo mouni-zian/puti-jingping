@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "觉屏 · 照见",
+  "version": "0.1.0",
+  "description": "在任意网页选中文字，右键照见情绪操纵手法",
+  "permissions": ["activeTab", "contextMenus", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "觉屏 · 照见"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
