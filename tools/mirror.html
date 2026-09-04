@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>照见 · 觉屏</title>
+<style>
+:root{--bg:#0a0a0a;--text:#e0e0e0;--gold:#c9a96e;--dim:#666;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;background:var(--bg);color:var(--text);line-height:1.9;max-width:680px;margin:0 auto;padding:3rem 1.5rem;}
+h1{color:var(--gold);font-weight:300;letter-spacing:0.3em;margin-bottom:0.5rem;font-size:1.5rem;}
+.subtitle{color:var(--dim);font-size:0.8rem;margin-bottom:2rem;}
+.back{color:var(--dim);font-size:0.85rem;text-decoration:none;display:inline-block;margin-bottom:2rem;}
+.back:hover{color:var(--gold);}
+textarea{width:100%;padding:0.8rem;background:#111;border:1px solid #222;color:var(--text);border-radius:4px;font-size:0.9rem;margin-bottom:1rem;font-family:inherit;resize:vertical;}
+input[type="password"]{width:100%;padding:0.8rem;background:#111;border:1px solid #222;color:var(--text);border-radius:4px;font-size:0.9rem;margin-bottom:1rem;font-family:inherit;}
+button{background:transparent;border:1px solid var(--gold);color:var(--gold);padding:0.5rem 1.5rem;border-radius:4px;cursor:pointer;font-size:0.85rem;transition:all 0.3s;}
+button:hover{background:var(--gold);color:#000;}
+.result{background:#111;border:1px solid #222;padding:1.2rem;margin-top:1.5rem;border-radius:4px;font-size:0.9rem;line-height:1.9;}
+.result h3{color:var(--gold);font-weight:300;margin-bottom:0.8rem;font-size:1rem;}
+.history{margin-top:2rem;}
+.history-item{background:#111;border-left:2px solid #222;padding:1rem;margin-bottom:0.8rem;border-radius:4px;font-size:0.85rem;}
+.history-time{color:#444;font-size:0.75rem;margin-bottom:0.3rem;}
+.tip{color:var(--dim);font-size:0.8rem;margin-bottom:1rem;}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← 返回觉屏</a>
+<h1>照 见</h1>
+<p class="tip">粘贴文本，让 AI 帮你照见其中的情绪操纵手法。数据只存在你的浏览器里。</p>
+
+<div id="key-area">
+  <p class="tip">首次使用需要设置 DeepSeek API Key：</p>
+  <input type="password" id="apikey" placeholder="sk-...">
+  <button onclick="saveKey()">保存 Key</button>
+</div>
+
+<div id="main-area" style="display:none;">
+  <textarea id="input" rows="6" placeholder="粘贴你想检测的文本..."></textarea>
+  <button onclick="analyze()">照见</button>
+</div>
+
+<div id="output"></div>
+<div class="history" id="history"></div>
+
+<script>
+// 检查是否已存 Key
+const savedKey = localStorage.getItem('puti_api_key');
+if (savedKey) {
+  document.getElementById('key-area').style.display = 'none';
+  document.getElementById('main-area').style.display = 'block';
+}
+
+function saveKey() {
+  const key = document.getElementById('apikey').value.trim();
+  if (!key) return;
+  localStorage.setItem('puti_api_key', key);
+  document.getElementById('key-area').style.display = 'none';
+  document.getElementById('main-area').style.display = 'block';
+}
+
+let history = JSON.parse(localStorage.getItem('puti_mirror_history') || '[]');
+renderHistory();
+
+async function analyze() {
+  const text = document.getElementById('input').value.trim();
+  if (!text) return;
+  const output = document.getElementById('output');
+  output.innerHTML = '<p class="tip">照见中...</p>';
+
+  try {
+    const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('puti_api_key')
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: '你是认知防御分析工具。分析用户输入的文本，识别其中可能存在的情绪操纵、认知偏见诱导、信息战手法。用简洁中文回复，分三点：1.操纵手法 2.情绪触发点 3.应对建议。' },
+          { role: 'user', content: text }
+        ],
+        temperature: 0.3
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const analysis = data.choices[0].message.content;
+
+    history.unshift({ text: text.substring(0, 50) + '...', analysis, time: new Date().toLocaleString() });
+    localStorage.setItem('puti_mirror_history', JSON.stringify(history));
+
+    output.innerHTML = `<div class="result"><h3>照见结果</h3><div style="white-space:pre-wrap;">${analysis.replace(/\n/g,'<br>')}</div></div>`;
+    renderHistory();
+    document.getElementById('input').value = '';
+  } catch(e) {
+    output.innerHTML = '<p style="color:var(--gold);">照见失败：' + e.message + '</p>';
+  }
+}
+
+function renderHistory() {
+  document.getElementById('history').innerHTML = history.map(item =>
+    `<div class="history-item"><div class="history-time">${item.time}</div><div style="color:var(--dim);margin-bottom:0.5rem;">${item.text}</div><div>${item.analysis.replace(/\n/g,'<br>')}</div></div>`
+  ).join('');
+}
+</script>
+</body>
+</html>
