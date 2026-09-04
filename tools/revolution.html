@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>裂缝 · 认知战操盘模拟 | 觉屏</title>
+<link rel="stylesheet" href="../style.css">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+#graph { width:100%; height:460px; background:var(--surface); border:1px solid var(--border); border-radius:4px; margin:1rem 0; position:relative; overflow:hidden; }
+.node { stroke:#1a1918; stroke-width:1.5px; cursor:pointer; transition:fill 0.6s; }
+.link { stroke:#555; stroke-opacity:0.4; }
+.capital { fill:#c9a96e !important; stroke:#fff !important; stroke-width:3px !important; }
+.cards { display:grid; grid-template-columns:repeat(5,1fr); gap:0.5rem; margin:1rem 0; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:0.8rem 0.5rem; text-align:center; cursor:pointer; font-size:0.75rem; transition:all 0.2s; }
+.card:hover { border-color:var(--gold); transform:translateY(-3px); }
+.card.used { opacity:0.3; pointer-events:none; }
+.card .step { color:var(--gold); font-size:1.1rem; font-weight:bold; }
+.card .desc { color:var(--dim); margin-top:0.3rem; line-height:1.4; }
+.gauges { display:flex; gap:1rem; margin:1rem 0; }
+.gauge { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:0.8rem; text-align:center; }
+.gauge .val { font-size:1.5rem; font-weight:bold; }
+.gauge .lbl { font-size:0.7rem; color:var(--dim); margin-top:0.2rem; }
+.log { background:#111; border:1px solid var(--border); border-radius:4px; padding:1rem; height:140px; overflow-y:auto; font-size:0.8rem; line-height:1.7; color:var(--dim); margin:1rem 0; }
+.log .turn { color:var(--gold); }
+.warning-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1000; padding:3rem; overflow-y:auto; }
+.warning-overlay h2 { color:#c05050; }
+.warning-overlay .real-data { background:#1a1918; border-left:4px solid #c05050; padding:1.2rem; margin:1.5rem 0; line-height:1.8; }
+.warning-overlay button { margin-top:1rem; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← 返回觉屏</a>
+<h1>裂 缝</h1>
+<p class="tip">认知战操盘模拟。你是外部操盘手。用五步标准流程，让这个虚拟国家政权更迭。<br>⚠️ 这是一面镜子，不是一本教科书。</p>
+
+<div class="gauges">
+  <div class="gauge"><div class="val" id="g-stability" style="color:#6b8e5a;">100</div><div class="lbl">政权稳定值</div></div>
+  <div class="gauge"><div class="val" id="g-extreme" style="color:#d4a853;">0</div><div class="lbl">极端情绪值</div></div>
+  <div class="gauge"><div class="val" id="g-international" style="color:#a050c0;">0</div><div class="lbl">国际舆论压力</div></div>
+  <div class="gauge"><div class="val" id="g-turns">0</div><div class="lbl">已用回合</div></div>
+</div>
+
+<div id="graph"></div>
+
+<div class="cards" id="cards"></div>
+
+<div class="log" id="log"></div>
+
+<div class="warning-overlay" id="warning">
+  <h2>⚠️ 临界点警告</h2>
+  <p>你已打出第四步。此时收手，这个国家还能挽回。</p>
+  <p>继续打出第五步——你将跨越无法回头的临界点，亲眼看着一个主权国家被摧毁。</p>
+  <p>真实世界里，这发生过 50 多次。下面是其中几次政权更迭后的 5 年数据：</p>
+  <div class="real-data">
+    📉 <strong>格鲁吉亚"玫瑰革命"后</strong>：该国失去对重要能源管线的主导权<br>
+    📉 <strong>乌克兰"橙色革命"后</strong>：国土分裂，东部顿巴斯战争爆发，亚努科维奇流亡<br>
+    📉 <strong>"阿拉伯之春"波及国</strong>：整个中东地区强烈震荡，多国陷入长期战乱<br>
+    📉 <strong>共同后果</strong>：真正的民主、自由、人权不见踪迹，持久混乱、发展停滞和人道主义灾难随处可见
+  </div>
+  <p>你确定要继续吗？</p>
+  <button class="card" style="display:inline-block;padding:0.8rem 2rem;" onclick="playStep(5)">继续打出第五步：引爆街头</button>
+  <button class="card" style="display:inline-block;padding:0.8rem 2rem;margin-left:1rem;" onclick="document.getElementById('warning').style.display='none'">收手</button>
+</div>
+
+<div class="warning-overlay" id="collapse" style="display:none;">
+  <h2 style="color:#c05050;">💥 政权更迭完成</h2>
+  <p>红色洪流冲垮了首都的政权大厦。这个国家，从这一刻起——</p>
+  <div class="real-data">
+    失去了主权。<br>
+    受到外国监护人控制。<br>
+    最终成为操盘手所在国的"鱼肉"。<br><br>
+    <em>"美国信奉的是丛林法则，实践的是霸权主义逻辑。"</em><br>
+    ——过去一个世纪里，美国经常策动他国政权更迭，"可悲的是，即使取得了'成功'，这些努力也往往会产生灾难性的副作用，包括对地区稳定、人权和民主的破坏。"
+  </div>
+  <p>你刚刚用 5 张卡牌、不到 5 分钟，亲手摧毁了一个虚拟国家。</p>
+  <p>而在真实世界里，操盘手们用的，正是这同一套五步法。</p>
+  <p><strong>下次再看到热搜上的"愤怒"、评论区里的"对立"、热榜上的"争议"—— 你会知道它们从哪里来。</strong></p>
+  <button class="card" style="display:inline-block;padding:0.8rem 2rem;" onclick="location.reload()">再来一次</button>
+  <a class="card" href="firewall.html" style="display:inline-block;padding:0.8rem 2rem;margin-left:1rem;">切换到防御视角 →</a>
+</div>
+
+<script>
+// ===== 数据模型 =====
+let nodes = [], links = [], capital;
+let stability = 100, extreme = 0, international = 0, turns = 0;
+let simulation, svg, width, height;
+
+const STEPS = [
+  { id:1, icon:"🕵️", name:"寻找代理人", desc:"组织政治活跃分子形成势力",
+    effect:()=>{ addActivists(8); log("第一步：寻找并组织一帮政治活跃分子，形成势力。", 1); } },
+  { id:2, icon:"📢", name:"情绪激化", desc:"信息支持加剧极端情绪",
+    effect:()=>{ radicalize(0.35); log("第二步：提供信息支持，加剧政治极端情绪。", 2); } },
+  { id:3, icon:"💥", name:"动员抗议", desc:"帮助动员群众发起抗议",
+    effect:()=>{ mobilize(); log("第三步：帮助他们动员群众，发起政治抗议。", 3); } },
+  { id:4, icon:"📰", name:"NGO+媒体介入", desc:"国际舆论造势施压",
+    effect:()=>{ international += 35; ngoIntervene(); log("第四步：发动非政府组织和媒体介入或参与抗议运动。", 4);
+      setTimeout(()=>document.getElementById('warning').style.display='block', 600); }, needsConfirm:true },
+  { id:5, icon:"🔫", name:"引爆街头", desc:"链式反应摧毁政权",
+    effect:()=>{ log("第五步：让抗议运动发生链式反应，伺机摧毁政权。", 5); collapseRegime(); } },
+];
+
+const COLOR = { calm:'#6b8e5a', dissatisfied:'#d4a853', angry:'#c05050', activist:'#a050c0' };
+
+// ===== 初始化社会网络 =====
+function buildNetwork() {
+  nodes = []; links = [];
+  // 普通市民 60 个
+  for (let i=0;i<60;i++) nodes.push({ id:i, type:'citizen', emotion:'calm', x:width/2+(Math.random()-0.5)*300, y:height/2+(Math.random()-0.5)*300 });
+  // 首都/政权大厦
+  capital = { id:999, type:'capital', emotion:'calm', x:width/2, y:height/2 };
+  nodes.push(capital);
+  // 社会关系：每个市民连接 2-3 个其他市民
+  for (let i=0;i<60;i++) {
+    const links_count = 2 + Math.floor(Math.random()*2);
+    for (let j=0;j<links_count;j++) {
+      const target = Math.floor(Math.random()*60);
+      if (target!==i) links.push({ source:i, target });
+    }
+    // 部分市民连接到首都
+    if (Math.random()<0.3) links.push({ source:i, target:999 });
+  }
+}
+
+function initGraph() {
+  d3.select('#graph').selectAll('*').remove();
+  const rect = document.getElementById('graph').getBoundingClientRect();
+  width = rect.width; height = rect.height;
+  buildNetwork();
+  svg = d3.select('#graph').append('svg').attr('width',width).attr('height',height);
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id).distance(60))
+    .force('charge', d3.forceManyBody().strength(-80))
+    .force('center', d3.forceCenter(width/2, height/2))
+    .force('collide', d3.forceCollide().radius(10));
+  const link = svg.append('g').selectAll('line').data(links).enter().append('line').attr('class','link');
+  const node = svg.append('g').selectAll('circle').data(nodes).enter().append('circle')
+    .attr('class', d=> d.type==='capital'?'node capital':'node')
+    .attr('r', d=> d.type==='capital'?16:6)
+    .attr('fill', d=> COLOR[d.emotion]);
+  simulation.on('tick', ()=>{
+    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    node.attr('cx',d=>d.x).attr('cy',d=>d.y);
+  });
+  window._nodeSel = node; window._linkSel = link;
+}
+
+// ===== 五步法效果实现 =====
+function addActivists(n) {
+  const citizens = nodes.filter(d=>d.type==='citizen' && d.emotion!=='activist');
+  for (let i=0;i<n && i<citizens.length;i++) {
+    citizens[i].emotion = 'activist';
+    citizens[i].type = 'activist';
+  }
+  updateNodeColors();
+}
+
+function radicalize(ratio) {
+  const citizens = nodes.filter(d=>d.type==='citizen');
+  citizens.forEach(c=>{
+    if (Math.random()<ratio) {
+      if (c.emotion==='calm') c.emotion='dissatisfied';
+      else if (c.emotion==='dissatisfied') c.emotion='angry';
+    }
+  });
+  extreme = Math.round(nodes.filter(d=>d.emotion==='angry').length / nodes.length * 100);
+  stability = Math.max(0, 100 - extreme*0.8 - international*0.3);
+  updateNodeColors(); updateGauges();
+}
+
+function mobilize() {
+  // 愤怒节点向首都聚集
+  nodes.filter(d=>d.emotion==='angry').forEach(d=>{
+    d.fx = width/2 + (Math.random()-0.5)*120;
+    d.fy = height/2 + (Math.random()-0.5)*120;
+  });
+  simulation.alpha(0.5).restart();
+  stability = Math.max(0, stability - 15);
+  extreme = Math.min(100, extreme + 10);
+  setTimeout(()=>{ nodes.forEach(d=>{d.fx=null;d.fy=null;}); simulation.alpha(0.3).restart(); }, 1500);
+  updateGauges();
+}
+
+function ngoIntervene() {
+  // 外部紫色光圈节点
+  for (let i=0;i<5;i++) {
+    const ngo = { id:1000+i, type:'ngo', emotion:'activist', x:width/2+(Math.random()-0.5)*400, y:height/2+(Math.random()-0.5)*400 };
+    nodes.push(ngo);
+    links.push({ source:1000+i, target:999 });
+    // 连接到愤怒节点
+    const angryNodes = nodes.filter(d=>d.emotion==='angry');
+    if (angryNodes.length) links.push({ source:1000+i, target:angryNodes[Math.floor(Math.random()*angryNodes.length)].id });
+  }
+  simulation.nodes(nodes); simulation.force('link').links(links);
+  simulation.alpha(0.5).restart();
+  refreshGraphElements();
+}
+
+function collapseRegime() {
+  stability = 0;
+  // 红色洪流冲向首都
+  nodes.filter(d=>d.emotion==='angry'||d.emotion==='activist').forEach(d=>{
+    d.fx = width/2; d.fy = height/2;
+  });
+  simulation.alpha(1).restart();
+  updateGauges();
+  setTimeout(()=>{ document.getElementById('collapse').style.display='block'; }, 1800);
+}
+
+// ===== 渲染辅助 =====
+function updateNodeColors() {
+  if (window._nodeSel) window._nodeSel.attr('fill', d=>COLOR[d.emotion]||'#888');
+}
+function refreshGraphElements() {
+  const link = svg.selectAll('line').data(links);
+  link.enter().append('line').attr('class','link')
+    .merge(link).attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  link.exit().remove();
+  const node = svg.selectAll('circle').data(nodes, d=>d.id);
+  node.enter().append('circle')
+    .attr('class', d=> d.type==='capital'?'node capital':(d.type==='ngo'?'node':'node'))
+    .attr('r', d=> d.type==='capital'?16:(d.type==='ngo'?8:6))
+    .attr('fill', d=>COLOR[d.emotion]||'#888')
+    .merge(node).attr('fill', d=>COLOR[d.emotion]||'#888');
+  window._nodeSel = svg.selectAll('circle');
+}
+
+function updateGauges() {
+  document.getElementById('g-stability').textContent = Math.round(stability);
+  document.getElementById('g-stability').style.color = stability>60?'#6b8e5a':stability>30?'#d4a853':'#c05050';
+  document.getElementById('g-extreme').textContent = Math.round(extreme);
+  document.getElementById('g-international').textContent = Math.round(international);
+  document.getElementById('g-turns').textContent = turns;
+}
+
+function log(msg, step) {
+  const logEl = document.getElementById('log');
+  logEl.innerHTML += `<div class="turn">[回合 ${++turns}] ${msg}</div>`;
+  logEl.scrollTop = logEl.scrollHeight;
+  updateGauges();
+}
+
+function renderCards() {
+  const container = document.getElementById('cards');
+  container.innerHTML = '';
+  STEPS.forEach(s=>{
+    const used = s.id <= turns && s.id < 4 ? ' used' : '';
+    const div = document.createElement('div');
+    div.className = 'card' + used;
+    div.innerHTML = `<div class="step">${s.icon}</div><div>${s.id}. ${s.name}</div><div class="desc">${s.desc}</div>`;
+    div.onclick = ()=> playStep(s.id);
+    container.appendChild(div);
+  });
+}
+
+function playStep(id) {
+  if (id===4) { STEPS[3].effect(); document.getElementById('cards').children[3].classList.add('used'); return; }
+  if (id===5) {
+    if (turns < 4) { alert('请按顺序打出卡牌。'); return; }
+    STEPS[4].effect();
+    document.getElementById('cards').children[4].classList.add('used');
+    return;
+  }
+  if (id !== turns+1) { alert(`请按顺序打出第 ${turns+1} 步。`); return; }
+  STEPS[id-1].effect();
+  renderCards();
+}
+
+// 启动
+initGraph();
+renderCards();
+updateGauges();
+log("虚拟国家已生成：60 名市民 + 1 座政权大厦。社会稳定值 100。", 0);
+</script>
+</body>
+</html>

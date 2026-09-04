@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>觉屏 · 认知防火墙 | 觉屏</title>
+<link rel="stylesheet" href="../style.css">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+#graph { width:100%; height:420px; background:var(--surface); border:1px solid var(--border); border-radius:4px; margin:1rem 0; position:relative; }
+.node { stroke:#1a1918; stroke-width:1.5px; }
+.link { stroke:#555; stroke-opacity:0.4; }
+.capital { fill:#c9a96e !important; stroke:#fff !important; stroke-width:3px !important; }
+.gauges { display:flex; gap:1rem; margin:1rem 0; }
+.gauge { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:0.8rem; text-align:center; }
+.gauge .val { font-size:1.5rem; font-weight:bold; }
+.gauge .lbl { font-size:0.7rem; color:var(--dim); margin-top:0.2rem; }
+.actions { display:grid; grid-template-columns:repeat(5,1fr); gap:0.5rem; margin:1rem 0; }
+.action { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:0.8rem 0.4rem; text-align:center; cursor:pointer; font-size:0.75rem; transition:all 0.2s; }
+.action:hover { border-color:var(--gold); transform:translateY(-3px); }
+.action .cost { color:#c05050; font-size:0.65rem; margin-top:0.2rem; }
+.log { background:#111; border:1px solid var(--border); border-radius:4px; padding:1rem; height:160px; overflow-y:auto; font-size:0.8rem; line-height:1.7; color:var(--dim); margin:1rem 0; }
+.log .ai { color:#c05050; }
+.log .you { color:#6b8e5a; }
+.log .sys { color:var(--gold); }
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1000; padding:3rem; overflow-y:auto; text-align:center; }
+.overlay h2 { font-size:2rem; margin-bottom:1rem; }
+.overlay.gold h2 { color:#d4a853; }
+.overlay.win h2 { color:#6b8e5a; }
+.overlay.lose h2 { color:#c05050; }
+.overlay button { margin-top:2rem; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← 返回觉屏</a>
+<h1>觉 屏 · 认 知 防 火 墙</h1>
+<p class="tip">你是目标国家的认知安全官。一个 AI 操纵者正在按"颜色革命五步法"向你进攻。<br>在 10 个回合内守住政权稳定值。每一次防御，都是对认知战的一次反击。</p>
+
+<div class="gauges">
+  <div class="gauge"><div class="val" id="g-stability" style="color:#6b8e5a;">100</div><div class="lbl">政权稳定值</div></div>
+  <div class="gauge"><div class="val" id="g-extreme" style="color:#d4a853;">0</div><div class="lbl">极端情绪值</div></div>
+  <div class="gauge"><div class="val" id="g-economy" style="color:#6b8e5a;">100</div><div class="lbl">经济健康值</div></div>
+  <div class="gauge"><div class="val" id="g-turns">0 / 10</div><div class="lbl">回合</div></div>
+</div>
+
+<div id="graph"></div>
+
+<div class="actions" id="actions"></div>
+
+<div class="log" id="log"></div>
+
+<div class="overlay gold" id="end-gold">
+  <h2>🏆 黄金结局：认知防线稳固</h2>
+  <p>10 个回合结束，AI 操纵者撤退。</p>
+  <p>你的国家守住了——社会稳定，经济健康，国民认知免疫力全面提升。</p>
+  <p>这是信息战防御的终极形态：<strong>不被操纵，也不被孤立</strong>。</p>
+  <button class="action" style="display:inline-block;padding:0.8rem 2rem;" onclick="location.reload()">再来一次</button>
+  <a class="action" href="revolution.html" style="display:inline-block;padding:0.8rem 2rem;margin-left:1rem;">看看进攻方视角 →</a>
+</div>
+
+<div class="overlay win" id="end-win">
+  <h2>⚖️ 惨胜：政权存续，但代价沉重</h2>
+  <p>政权稳定住了，但经济崩盘。</p>
+  <p>断网、隔离、高压管控——你赢了战役，却输了未来。</p>
+  <p>真实世界里，这正是许多国家面临的困境：<strong>为了安全牺牲发展</strong>。</p>
+  <button class="action" style="display:inline-block;padding:0.8rem 2rem;" onclick="location.reload()">再来一次</button>
+</div>
+
+<div class="overlay lose" id="end-lose">
+  <h2>💀 失败：政权更迭</h2>
+  <p>AI 操纵者成功了。你的国家，成为了下一个"颜色革命"的注脚。</p>
+  <p>真实世界里，这套五步法屡试不爽：<br>
+  从格鲁吉亚的"玫瑰革命"到乌克兰的"橙色革命"，从吉尔吉斯斯坦的"郁金香革命"到波及中东多国的"阿拉伯之春"。</p>
+  <p><strong>但你已经看清了整套打法。这，就是"觉屏"的意义。</strong></p>
+  <button class="action" style="display:inline-block;padding:0.8rem 2rem;" onclick="location.reload()">再来一次</button>
+  <a class="action" href="revolution.html" style="display:inline-block;padding:0.8rem 2rem;margin-left:1rem;">看看对手怎么赢的 →</a>
+</div>
+
+<script>
+// ===== 状态 =====
+let nodes=[], links=[], capital;
+let stability=100, extreme=0, economy=100, turns=0, immunity=0;
+let aiStep=0;
+let simulation, svg, width, height;
+const MAX_TURNS=10;
+const COLOR={calm:'#6b8e5a', dissatisfied:'#d4a853', angry:'#c05050', activist:'#a050c0'};
+
+const AI_STEPS=[
+  "第一步：寻找并组织一帮政治活跃分子，形成势力。",
+  "第二步：提供信息支持，加剧政治极端情绪。",
+  "第三步：帮助他们动员群众，发起政治抗议。",
+  "第四步：发动非政府组织和媒体介入或参与抗议运动。",
+  "第五步：让抗议运动发生链式反应，伺机摧毁政权。",
+  "第一步（循环）：继续寻找代理人，扩大势力。",
+  "第二步（循环）：新一轮信息轰炸，情绪进一步激化。",
+  "第三步（循环）：抗议规模升级，街头对峙形成。",
+  "第四步（循环）：国际舆论全面施压，制裁威胁。",
+  "第五步（循环）：总攻——链式反应全面引爆。",
+];
+
+const DEFENSES=[
+  { id:'discipline', icon:"🧘", name:"认知纪律", cost:"情绪-15",
+    effect:()=>{ extreme=Math.max(0,extreme-15); radicalizeReverse(0.2); log("你：实施认知纪律，全体国民极端情绪下降。",'you'); } },
+  { id:'detect', icon:"🔍", name:"识别操纵", cost:"揭穿本回合AI",
+    effect:()=>{ if(aiStep>0){ extreme=Math.max(0,extreme-8); stability=Math.min(100,stability+5); log("你：识破 AI 的第"+aiStep+"步操纵，效果减半。",'you'); } else log("你：本回合 AI 尚未行动，识别无效。",'you'); } },
+  { id:'truth', icon:"📣", name:"真相传播", cost:"免疫力+10",
+    effect:()=>{ immunity+=10; log("你：传播真相，国民认知免疫力提升。后续操纵效果将衰减。",'you'); } },
+  { id:'heal', icon:"🤝", name:"社会缝合", cost:"稳定+8",
+    effect:()=>{ stability=Math.min(100,stability+8); healSociety(); log("你：重建社会信任，蓝色连线恢复，稳定值上升。",'you'); } },
+  { id:'isolate', icon:"🚫", name:"断网隔离", cost:"经济-15,稳定+12",
+    effect:()=>{ economy=Math.max(0,economy-15); stability=Math.min(100,stability+12); removeNGOs(); log("你：切断外部 NGO 网络连接。经济损失 15，但稳定值+12。",'you'); } },
+];
+
+// ===== 网络 =====
+function buildNetwork(){
+  nodes=[]; links=[];
+  for(let i=0;i<60;i++) nodes.push({id:i,type:'citizen',emotion:'calm',x:width/2+(Math.random()-0.5)*300,y:height/2+(Math.random()-0.5)*300});
+  capital={id:999,type:'capital',emotion:'calm',x:width/2,y:height/2};
+  nodes.push(capital);
+  for(let i=0;i<60;i++){
+    const lc=2+Math.floor(Math.random()*2);
+    for(let j=0;j<lc;j++){ const t=Math.floor(Math.random()*60); if(t!==i) links.push({source:i,target:t}); }
+    if(Math.random()<0.3) links.push({source:i,target:999});
+    // 初始蓝色社会连线
+    if(Math.random()<0.5) links.push({source:i,target:Math.floor(Math.random()*60),trust:true});
+  }
+}
+
+function initGraph(){
+  d3.select('#graph').selectAll('*').remove();
+  const rect=document.getElementById('graph').getBoundingClientRect();
+  width=rect.width; height=rect.height;
+  buildNetwork();
+  svg=d3.select('#graph').append('svg').attr('width',width).attr('height',height);
+  simulation=d3.forceSimulation(nodes)
+    .force('link',d3.forceLink(links).id(d=>d.id).distance(60))
+    .force('charge',d3.forceManyBody().strength(-80))
+    .force('center',d3.forceCenter(width/2,height/2))
+    .force('collide',d3.forceCollide().radius(10));
+  const link=svg.append('g').selectAll('line').data(links).enter().append('line')
+    .attr('class','link').style('stroke',d=>d.trust?'#6b8e5a':'#555').style('stroke-opacity',d=>d.trust?0.5:0.4);
+  const node=svg.append('g').selectAll('circle').data(nodes).enter().append('circle')
+    .attr('class',d=>d.type==='capital'?'node capital':'node')
+    .attr('r',d=>d.type==='capital'?16:6).attr('fill',d=>COLOR[d.emotion]);
+  simulation.on('tick',()=>{
+    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    node.attr('cx',d=>d.x).attr('cy',d=>d.y);
+  });
+  window._node=node; window._link=link;
+}
+
+// ===== AI 进攻 =====
+function aiAttack(){
+  if(aiStep>=MAX_TURNS) return;
+  aiStep++;
+  const stepIdx=Math.min(aiStep-1, AI_STEPS.length-1);
+  log("AI 操纵者："+AI_STEPS[stepIdx],'ai');
+
+  // 免疫力衰减 AI 效果
+  const immuneFactor=Math.max(0.3, 1 - immunity/100);
+
+  // 效果
+  addActivists(aiStep===1?8:3);
+  radicalize(0.35*immuneFactor);
+  if(aiStep>=3) mobilize();
+  if(aiStep===4||aiStep===9) ngoIntervene();
+  if(aiStep===5||aiStep===10){
+    stability=Math.max(0, stability-25);
+    extreme=Math.min(100, extreme+15);
+  } else {
+    stability=Math.max(0, stability-6*immuneFactor);
+    extreme=Math.min(100, extreme+8*immuneFactor);
+  }
+
+  updateGauges(); updateNodeColors();
+
+  if(stability<=0){ setTimeout(()=>document.getElementById('end-lose').style.display='block',800); return; }
+  if(aiStep>=MAX_TURNS){
+    setTimeout(()=>{
+      if(stability>30 && economy>30) document.getElementById('end-gold').style.display='block';
+      else document.getElementById('end-win').style.display='block';
+    },800);
+  }
+}
+
+// ===== 防御效果 =====
+function addActivists(n){
+  const citizens=nodes.filter(d=>d.type==='citizen'&&d.emotion!=='activist');
+  for(let i=0;i<n&&i<citizens.length;i++){ citizens[i].emotion='activist'; citizens[i].type='activist'; }
+}
+function radicalize(ratio){
+  nodes.filter(d=>d.type==='citizen').forEach(c=>{
+    if(Math.random()<ratio){
+      if(c.emotion==='calm')c.emotion='dissatisfied';
+      else if(c.emotion==='dissatisfied')c.emotion='angry';
+    }
+  });
+}
+function radicalizeReverse(ratio){
+  nodes.filter(d=>d.type==='citizen').forEach(c=>{
+    if(Math.random()<ratio){
+      if(c.emotion==='angry')c.emotion='dissatisfied';
+      else if(c.emotion==='dissatisfied')c.emotion='calm';
+    }
+  });
+  updateNodeColors();
+}
+function mobilize(){
+  nodes.filter(d=>d.emotion==='angry').forEach(d=>{ d.fx=width/2+(Math.random()-0.5)*120; d.fy=height/2+(Math.random()-0.5)*120; });
+  simulation.alpha(0.5).restart();
+  setTimeout(()=>{ nodes.forEach(d=>{d.fx=null;d.fy=null;}); simulation.alpha(0.3).restart(); },1500);
+}
+function ngoIntervene(){
+  for(let i=0;i<4;i++){
+    nodes.push({id:1000+aiStep*10+i,type:'ngo',emotion:'activist',x:width/2+(Math.random()-0.5)*400,y:height/2+(Math.random()-0.5)*400});
+    links.push({source:1000+aiStep*10+i,target:999});
+    const angry=nodes.filter(d=>d.emotion==='angry');
+    if(angry.length) links.push({source:1000+aiStep*10+i,target:angry[Math.floor(Math.random()*angry.length)].id});
+  }
+  simulation.nodes(nodes); simulation.force('link').links(links); simulation.alpha(0.5).restart();
+  refresh();
+}
+function healSociety(){
+  // 增加蓝色信任连线
+  for(let i=0;i<10;i++) links.push({source:Math.floor(Math.random()*60),target:Math.floor(Math.random()*60),trust:true});
+  simulation.force('link').links(links); simulation.alpha(0.3).restart();
+  refresh();
+  window._link.style('stroke',d=>d.trust?'#6b8e5a':'#555').style('stroke-opacity',d=>d.trust?0.5:0.4);
+}
+function removeNGOs(){
+  nodes=nodes.filter(d=>d.type!=='ngo');
+  links=links.filter(l=>{
+    const s=l.source.id!==undefined?l.source.id:l.source;
+    const t=l.target.id!==undefined?l.target.id:l.target;
+    return s<1000&&t<1000;
+  });
+  simulation.nodes(nodes); simulation.force('link').links(links); simulation.alpha(0.3).restart();
+  refresh();
+}
+function refresh(){
+  const link=svg.selectAll('line').data(links);
+  link.enter().append('line').attr('class','link')
+    .merge(link).style('stroke',d=>d.trust?'#6b8e5a':'#555').style('stroke-opacity',d=>d.trust?0.5:0.4)
+    .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  link.exit().remove();
+  const node=svg.selectAll('circle').data(nodes,d=>d.id);
+  node.enter().append('circle').attr('class',d=>d.type==='capital'?'node capital':'node')
+    .attr('r',d=>d.type==='capital'?16:6).attr('fill',d=>COLOR[d.emotion]||'#888')
+    .merge(node).attr('fill',d=>COLOR[d.emotion]||'#888');
+  node.exit().remove();
+  window._node=svg.selectAll('circle');
+  window._link=svg.selectAll('line');
+}
+function updateNodeColors(){ if(window._node) window._node.attr('fill',d=>COLOR[d.emotion]||'#888'); }
+function updateGauges(){
+  document.getElementById('g-stability').textContent=Math.round(stability);
+  document.getElementById('g-stability').style.color=stability>60?'#6b8e5a':stability>30?'#d4a853':'#c05050';
+  document.getElementById('g-extreme').textContent=Math.round(extreme);
+  document.getElementById('g-economy').textContent=Math.round(economy);
+  document.getElementById('g-economy').style.color=economy>60?'#6b8e5a':economy>30?'#d4a853':'#c05050';
+  document.getElementById('g-turns').textContent=turns+' / '+MAX_TURNS;
+}
+function log(msg,cls){
+  const el=document.getElementById('log');
+  el.innerHTML+=`<div class="${cls}">${msg}</div>`;
+  el.scrollTop=el.scrollHeight;
+}
+function renderActions(){
+  const c=document.getElementById('actions'); c.innerHTML='';
+  DEFENSES.forEach(d=>{
+    const div=document.createElement('div');
+    div.className='action';
+    div.innerHTML=`<div style="font-size:1.2rem;">${d.icon}</div><div>${d.name}</div><div class="cost">${d.cost}</div>`;
+    div.onclick=()=>{
+      if(turns>=MAX_TURNS)return;
+      d.effect();
+      turns++;
+      updateGauges();
+      updateNodeColors();
+      if(turns<MAX_TURNS) setTimeout(aiAttack,500);
+    };
+    c.appendChild(div);
+  });
+}
+
+// 启动
+initGraph();
+renderActions();
+updateGauges();
+log("认知防火墙已启动。AI 操纵者将在每个回合按五步法向你进攻。",'sys');
+log("回合 1 开始。选择你的防御行动。",'sys');
+</script>
+</body>
+</html>
