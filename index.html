@@ -4,10 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>觉屏 · 认知防弹衣</title>
+<link rel="manifest" href="manifest.webmanifest">
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
 <style>
 :root{--bg:#0a0a0a;--text:#e0e0e0;--gold:#c9a96e;--dim:#666;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;background:var(--bg);color:var(--text);line-height:1.9;max-width:680px;margin:0 auto;padding:3rem 1.5rem;}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;background:var(--bg);color:var(--text);line-height:1.9;max-width:680px;margin:0 auto;padding:3rem 1.5rem;padding-bottom:5rem;}
 header{text-align:center;margin-bottom:3rem;}
 h1{font-size:1.8rem;font-weight:300;letter-spacing:0.4em;color:var(--gold);margin-bottom:0.5rem;}
 .subtitle{font-size:0.85rem;color:var(--dim);letter-spacing:0.2em;}
@@ -20,8 +22,6 @@ h1{font-size:1.8rem;font-weight:300;letter-spacing:0.4em;color:var(--gold);margi
 .nav-item p{font-size:0.85rem;color:var(--dim);}
 footer{text-align:center;font-size:0.75rem;color:#444;letter-spacing:0.05em;border-top:1px solid #1a1a1a;padding-top:2rem;margin-top:3rem;}
 </style>
-<link rel="manifest" href="manifest.webmanifest">
-<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
 </head>
 <body>
 <header>
@@ -45,11 +45,11 @@ footer{text-align:center;font-size:0.75rem;color:#444;letter-spacing:0.05em;bord
     <h3>认知纪律</h3>
     <p>不轻信、不恐惧、不愤怒、不互动。让算法喂不动你。</p>
   </a>
-<a class="nav-item" href="tools/mirror.html">
+  <a class="nav-item" href="tools/mirror.html">
     <h3>照见</h3>
     <p>粘贴文本，AI 帮你识别情绪操纵手法。你的 Key，你的数据。</p>
   </a>
-<a class="nav-item" href="tools/score.html">
+  <a class="nav-item" href="tools/score.html">
     <h3>清净度打卡</h3>
     <p>每天打分，看趋势。数据只存在你的浏览器里。</p>
   </a>
@@ -58,8 +58,9 @@ footer{text-align:center;font-size:0.75rem;color:#444;letter-spacing:0.05em;bord
   本地优先 · 数据不上传 · 你的认知你做主<br>
   © 2026 觉屏
 </footer>
-<div id="install-tip" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #c9a96e;padding:1rem;text-align:center;font-size:0.85rem;color:#bbb;">
-  📱 将此页面添加到手机主屏幕，随时使用。
+
+<div id="install-tip" style="position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #c9a96e;padding:1rem;text-align:center;font-size:0.85rem;color:#bbb;z-index:999;">
+  📱 将此页面添加到手机主屏幕：浏览器菜单 → "添加到主屏幕"。电脑上：地址栏右侧会出现安装图标。
   <button onclick="this.parentElement.style.display='none'" style="margin-left:1rem;background:none;border:1px solid #c9a96e;color:#c9a96e;padding:0.2rem 0.8rem;border-radius:3px;cursor:pointer;">知道了</button>
 </div>
 </body>
